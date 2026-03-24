@@ -1,29 +1,16 @@
 locals {
-  # from var.subnets, extract an object list of each type
-  firewall_subnets    = [for s in var.subnets : s if s.type == "firewall"]
-  public_subnets      = [for s in var.subnets : s if s.type == "public"]
-  private_subnets     = [for s in var.subnets : s if s.type == "private"]
-  tgw_subnets         = [for s in var.subnets : s if s.type == "tgw"]
-  database_subnets    = [for s in var.subnets : s if s.type == "database"]
-  redshift_subnets    = [for s in var.subnets : s if s.type == "redshift"]
-  elasticache_subnets = [for s in var.subnets : s if s.type == "elasticache"]
-  intra_subnets       = [for s in var.subnets : s if s.type == "intra"]
+  public_subnets  = [for s in var.subnets : s if s.type == "public"]
+  private_subnets = [for s in var.subnets : s if s.type == "private"]
 
-  # Per-cluster kubernetes.io/cluster/<name> tags
-  eks_cluster_tags = { for name in var.eks_cluster_names : "kubernetes.io/cluster/${name}" => var.eks_cluster_tag_value }
+  has_public_subnets = length(local.public_subnets) > 0
 
-  # EKS tags for private subnets (internal-elb + karpenter discovery)
-  eks_private_subnet_tags = var.enable_eks_subnet_tagging ? merge(
-    local.eks_cluster_tags,
-    var.enable_eks_private_subnet_tags ? { "kubernetes.io/role/internal-elb" = "1" } : {},
-    var.enable_karpenter_subnet_tags ? {
-      "karpenter.sh/discovery" = var.karpenter_discovery_tag_value != "" ? var.karpenter_discovery_tag_value : try(var.eks_cluster_names[0], "")
-    } : {}
-  ) : {}
+  # If 0.0.0.0/0 is in tgw_routes, all traffic routes through TGW — skip NAT GW creation
+  tgw_is_default_route = contains(var.tgw_routes, "0.0.0.0/0")
 
-  # EKS tags for public subnets (external elb)
-  eks_public_subnet_tags = var.enable_eks_subnet_tagging ? merge(
-    local.eks_cluster_tags,
-    var.enable_eks_public_subnet_tags ? { "kubernetes.io/role/elb" = "1" } : {}
-  ) : {}
+  # NAT GWs needed only when public subnets exist AND TGW is not the default route
+  create_nat_gateways = local.has_public_subnets && !local.tgw_is_default_route
+
+  nat_gateway_count = local.create_nat_gateways ? (var.one_nat_gateway_per_az ? length(var.azs) : length(local.private_subnets)) : 0
+
+  vpc_id = aws_vpc.this.id
 }

@@ -112,10 +112,10 @@ resource "aws_vpc_endpoint" "this" {
   vpc_id       = var.vpc_id
   service_name = lookup(each.value, "service_name", null) != null ? each.value.service_name : (
   startswith(each.key, "s3") || startswith(each.key, "dynamodb") ?
-    "com.amazonaws.${data.aws_region.current.name}.${each.key}" :
+    "com.amazonaws.${data.aws_region.current.id}.${each.key}" :
     contains(keys(data.aws_vpc_endpoint_service.this), each.key) ?
       data.aws_vpc_endpoint_service.this[each.key].service_name :
-      "com.amazonaws.${data.aws_region.current.name}.${each.key}"
+      "com.amazonaws.${data.aws_region.current.id}.${each.key}"
   )
 
   vpc_endpoint_type = lookup(each.value, "service_type", "Gateway")
