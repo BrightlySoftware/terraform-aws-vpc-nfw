@@ -8,6 +8,18 @@
 # the default route in private RTs points to the TGW.
 # -----------------------------------------------------------------------------
 
+# Fail fast if tgw_routes provided without tgw_id
+resource "terraform_data" "tgw_validation" {
+  count = length(var.tgw_routes) > 0 ? 1 : 0
+
+  lifecycle {
+    precondition {
+      condition     = var.tgw_id != null
+      error_message = "tgw_id must be provided when tgw_routes is non-empty."
+    }
+  }
+}
+
 resource "aws_ec2_transit_gateway_vpc_attachment" "this" {
   count = var.tgw_id != null ? 1 : 0
 

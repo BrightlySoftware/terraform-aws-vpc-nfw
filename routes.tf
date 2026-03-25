@@ -53,9 +53,9 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_route" "private_nat_gateway" {
-  count = local.create_nat_gateways ? local.nat_gateway_count : 0
+  count = local.create_nat_gateways ? length(aws_route_table.private) : 0
 
-  route_table_id         = element(aws_route_table.private[*].id, count.index)
+  route_table_id         = aws_route_table.private[count.index].id
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = element(aws_nat_gateway.this[*].id, count.index)
 
